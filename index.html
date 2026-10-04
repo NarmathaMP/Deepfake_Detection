@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DeepTrace | Forensic Authenticator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap");
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: #0b0f1a;
+        color: white;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .sidebar {
+        background: #060910;
+        width: 280px;
+        padding: 2.5rem 1.5rem;
+        border-right: 1px solid #1e293b;
+      }
+      .nav-item {
+        padding: 1rem;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: 0.3s;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+      }
+      .nav-item.active {
+        background: rgba(99, 102, 241, 0.2);
+        color: white;
+        border: 1px solid #6366f1;
+      }
+      .workspace {
+        flex: 1;
+        padding: 3rem;
+        overflow-y: auto;
+      }
+      .main-card {
+        background: #111827;
+        border-radius: 2.5rem;
+        padding: 3.5rem;
+        min-height: 100%;
+        border: 1px solid #1e293b;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
+      .upload-zone {
+        border: 2px dashed #1f2937;
+        border-radius: 2.5rem;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      .upload-zone:hover {
+        border-color: #6366f1;
+        background: rgba(99, 102, 241, 0.05);
+      }
+      textarea {
+        background: #060910;
+        color: white;
+        width: 100%;
+        height: 300px;
+        padding: 1.5rem;
+        border: 2px solid #1f2937;
+        border-radius: 1.5rem;
+        outline: none;
+        font-size: 1.1rem;
+        resize: none;
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="mb-12 px-2">
+        <h1 class="text-2xl font-black text-indigo-500">DEEPTRACE</h1>
+      </div>
+      <nav>
+        <div onclick="switchTab('photo', this)" class="nav-item active">
+          <i class="fas fa-camera w-6 mr-3"></i><span>Photo Engine</span>
+        </div>
+        <div onclick="switchTab('video', this)" class="nav-item">
+          <i class="fas fa-play-circle w-6 mr-3"></i><span>Video Engine</span>
+        </div>
+        <div onclick="switchTab('audio', this)" class="nav-item">
+          <i class="fas fa-volume-high w-6 mr-3"></i><span>Audio Engine</span>
+        </div>
+        <div onclick="switchTab('news', this)" class="nav-item">
+          <i class="fas fa-newspaper w-6 mr-3"></i><span>News Engine</span>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="workspace">
+      <div class="main-card flex flex-col">
+        <header class="mb-12">
+          <h2 id="title" class="text-6xl font-black tracking-tighter mb-2">
+            Photo Authenticator
+          </h2>
+          <p id="desc" class="text-slate-400 text-lg">
+            Scanning for GAN and Autoencoder artifacts.
+          </p>
+        </header>
+
+        <div
+          id="media-zone"
+          class="upload-zone flex-1 flex flex-col items-center justify-center p-12 text-center"
+        >
+          <input
+            type="file"
+            id="file-input"
+            class="hidden"
+            onchange="analyze()"
+          />
+          <div
+            class="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-500 text-5xl mb-8"
+          >
+            <i id="mode-icon" class="fas fa-camera"></i>
+          </div>
+          <h3 class="text-2xl font-bold">Upload Source File</h3>
+        </div>
+
+        <div id="news-zone" class="hidden flex flex-col space-y-6">
+          <textarea
+            id="news-text"
+            placeholder="Paste news article content here..."
+          ></textarea>
+          <button
+            onclick="analyze()"
+            class="bg-indigo-600 hover:bg-indigo-500 py-5 rounded-2xl font-bold text-xl uppercase tracking-widest transition-all"
+          >
+            Authenticate News
+          </button>
+        </div>
+
+        <div
+          id="results"
+          class="hidden mt-12 p-10 bg-black/30 rounded-[2.5rem] border border-white/5"
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <span
+                id="risk-badge"
+                class="px-4 py-1.5 rounded-full text-[10px] font-black text-white mb-4 inline-block"
+              ></span>
+              <h4
+                id="verdict"
+                class="text-7xl font-black tracking-tighter"
+              ></h4>
+              <p
+                class="text-indigo-400 font-bold mt-2 uppercase text-xs tracking-widest"
+              >
+                Confidence: <span id="conf" class="text-white">0</span>%
+              </p>
+            </div>
+            <div id="markers" class="grid grid-cols-1 gap-3 w-80"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let mode = "photo";
+      const ui = {
+        photo: {
+          t: "Photo Authenticator",
+          d: "Detecting GAN artifacts and pixel noise.",
+          i: "fa-camera",
+        },
+        video: {
+          t: "Video Authenticator",
+          d: "Temporal frame and motion analysis.",
+          i: "fa-play-circle",
+        },
+        audio: {
+          t: "Audio Authenticator",
+          d: "Spectral analysis for voice clones.",
+          i: "fa-volume-high",
+        },
+        news: {
+          t: "News Authenticator",
+          d: "NLP verification for sensationalism.",
+          i: "fa-newspaper",
+        },
+      };
+
+      function switchTab(m, el) {
+        mode = m;
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        el.classList.add("active");
+        document.getElementById("title").innerText = ui[m].t;
+        document.getElementById("desc").innerText = ui[m].d;
+        document.getElementById("mode-icon").className = `fas ${ui[m].i}`;
+        document
+          .getElementById("media-zone")
+          .classList.toggle("hidden", m === "news");
+        document
+          .getElementById("news-zone")
+          .classList.toggle("hidden", m !== "news");
+        document.getElementById("results").classList.add("hidden");
+      }
+
+      document.getElementById("media-zone").onclick = () =>
+        document.getElementById("file-input").click();
+
+      async function analyze() {
+        const fd = new FormData();
+        if (mode === "news")
+          fd.append("text_content", document.getElementById("news-text").value);
+        else fd.append("file", document.getElementById("file-input").files[0]);
+
+        const res = await fetch(`/scan/${mode}`, { method: "POST", body: fd });
+        const data = await res.json();
+
+        document.getElementById("results").classList.remove("hidden");
+        document.getElementById("verdict").innerText = data.verdict;
+        document.getElementById("verdict").style.color = data.color;
+        document.getElementById("conf").innerText = data.confidence;
+        document.getElementById("risk-badge").innerText = data.risk + " RISK";
+        document.getElementById("risk-badge").style.background = data.color;
+        document.getElementById("markers").innerHTML = data.points
+          .map(
+            (p) =>
+              `<div class="bg-white/5 p-4 rounded-xl text-[11px] font-bold text-slate-300 flex items-center"><i class="fas fa-check-circle mr-2" style="color:${data.color}"></i> ${p}</div>`,
+          )
+          .join("");
+      }
+    </script>
+  </body>
+</html>
